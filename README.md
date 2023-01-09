@@ -1,0 +1,2 @@
+# HotelsAPI
+ HotelsMinimalAPI
