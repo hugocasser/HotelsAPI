@@ -3,7 +3,7 @@ var app = builder.Build();
 
 var hotels = new List<Hotel>();
 
-app.Run();
+
 app.MapGet("/hotels", () => hotels);
 app.MapGet("/hotels/{id}", (int id) => hotels.FirstOrDefault(h => h.Id == id));
 app.MapPost("/hotels", (Hotel hotel) => hotels.Add(hotel));
@@ -20,6 +20,7 @@ app.MapDelete("/hotels/{id}", (int id) =>
     hotels.RemoveAt(index);
 });
 
+app.Run();
 public class Hotel
 {
     public int Id { get; set; }
