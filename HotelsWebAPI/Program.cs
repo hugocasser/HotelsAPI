@@ -1,30 +1,50 @@
+using HotelsWebAPI;
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddDbContext<HotelDb>(options =>
+{
+    options.UseSqlite(builder.Configuration.GetConnectionString("Sqlite"));
+});
+
 var app = builder.Build();
 
-var hotels = new List<Hotel>();
-
-
-app.MapGet("/hotels", () => hotels);
-app.MapGet("/hotels/{id}", (int id) => hotels.FirstOrDefault(h => h.Id == id));
-app.MapPost("/hotels", (Hotel hotel) => hotels.Add(hotel));
-app.MapPut("/hotels", (Hotel hotel) =>
+if (app.Environment.IsDevelopment())
 {
-    var index = hotels.FindIndex(h => h.Id == hotel.Id);
-    if (index < 0 ) throw new Exception("Not found");
-    hotels[index] = hotel;
-});
-app.MapDelete("/hotels/{id}", (int id) =>
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<HotelDb>();
+    db.Database.EnsureCreated();
+}
+
+app.MapGet("/hotels", async (HotelDb db) => await db.Hotels.ToListAsync());
+app.MapGet("/hotels/{id}", async (int id, HotelDb db) => 
+    await db.Hotels.FirstOrDefaultAsync(h => h.Id == id) is Hotel hotel
+    ? Results.Ok(hotel)
+    : Results.NotFound());
+app.MapPost("/hotels", async ([FromBody] Hotel hotel, HotelDb db) =>
 {
-    var index = hotels.FindIndex(h => h.Id == id);
-    if (index < 0) throw new Exception("Not found");
-    hotels.RemoveAt(index);
+    db.Hotels.Add(hotel);
+    await db.SaveChangesAsync();
+    return Results.Created($"/hotels/{hotel.Id}", hotel);
 });
+app.MapPut("/hotels", async ([FromBody] Hotel hotel, HotelDb db) =>
+{
+    var hotelFromDb = await db.Hotels.FindAsync(new object[] {hotel.Id});
+    if (hotelFromDb == null ) return Results.NotFound();
+    hotelFromDb.Latitude = hotel.Latitude;
+    hotelFromDb.Longitude = hotel.Longitude;
+    hotelFromDb.Name = hotel.Name;
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+app.MapDelete("/hotels/{id}", async (int id, HotelDb db) =>
+{
+    var hotelFromDb = await db.Hotels.FindAsync(new object[] {id});
+    if (hotelFromDb == null ) return Results.NotFound();
+    db.Hotels.Remove(hotelFromDb);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+app.UseHttpsRedirection();
 
 app.Run();
-public class Hotel
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
-}
