@@ -2,7 +2,7 @@
 
 public record Coordinate(double Latitude, double Longitude)
 {
-    public static bool TryParse(string input, out Coordinate? coordinate)
+    private static bool TryParse(string input, out Coordinate? coordinate)
     {
         coordinate = default;
         var splitArray = input.Split(',', 2);
